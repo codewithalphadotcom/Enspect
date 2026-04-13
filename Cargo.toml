@@ -1,0 +1,59 @@
+[package]
+name = "enspect"
+version = "1.0.0"
+edition = "2024"
+description = "Environment variable auditor — detect missing, leaked, and undocumented env vars"
+license = "MIT"
+repository = "https://github.com/codewithalpha/enspect"
+keywords = ["env", "security", "secrets", "dotenv", "audit"]
+categories = ["command-line-utilities", "development-tools"]
+authors = ["Krrish Kumar"]
+
+[[bin]]
+name = "enspect"
+path = "src/main.rs"
+
+[dependencies]
+# CLI argument parsing
+clap = { version = "4", features = ["derive", "color", "env"] }
+
+# Directory walking with gitignore support
+ignore = "0.4"
+
+# Regex engine
+regex = "1"
+
+# TOML config parsing
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Colored terminal output
+owo-colors = "4"
+
+# Terminal progress / table rendering
+indicatif = "0.17"
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Parallel scanning
+rayon = "1"
+
+# Path utilities
+walkdir = "2"
+
+# Shell completions
+clap_complete = "4"
+
+# Interactive REPL
+rustyline = "15"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
