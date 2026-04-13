@@ -1,18 +1,8 @@
 use crate::audit::findings::{AuditReport, Finding, SecretFinding, Severity};
 use owo_colors::OwoColorize;
 
-// ── ASCII art banner ────────────────────────────────────────────────────────
-
-const BANNER: &str = r#"
-  ███████╗███╗   ██╗███████╗██████╗ ███████╗ ██████╗████████╗
-  ██╔════╝████╗  ██║██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝
-  █████╗  ██╔██╗ ██║███████╗██████╔╝█████╗  ██║        ██║
-  ██╔══╝  ██║╚██╗██║╚════██║██╔═══╝ ██╔══╝  ██║        ██║
-  ███████╗██║ ╚████║███████║██║     ███████╗╚██████╗   ██║
-  ╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝     ╚══════╝ ╚═════╝   ╚═╝
-"#;
-
 const DIVIDER_WIDTH: usize = 64;
+const SUMMARY_INNER_W: usize = 46;
 
 fn divider() -> String {
     "─".repeat(DIVIDER_WIDTH)
@@ -39,20 +29,7 @@ pub fn render(report: &AuditReport, color: bool) -> String {
 fn render_colored(report: &AuditReport) -> String {
     let mut out = String::new();
 
-    // Banner
-    for line in BANNER.lines() {
-        out.push_str(&format!("{}\n", line.bright_yellow().bold().to_string()));
-    }
-    out.push_str(&format!(
-        "  {}\n",
-        "Environment Variable Auditor".dimmed().to_string()
-    ));
-    out.push_str(&format!(
-        "  {}\n\n",
-        format!("v{}", report.version).dimmed().to_string()
-    ));
-
-    // Stats bar
+    // Stats bar (no banner — branding lives in the interactive REPL welcome screen)
     out.push_str(&format!("  {}\n", divider().dimmed().to_string()));
     out.push_str(&format!(
         "  {} Scanned {} files in {:.2}s\n",
@@ -142,7 +119,7 @@ fn render_colored(report: &AuditReport) -> String {
         out.push_str(&format!(
             "  {}\n",
             section_header("[-]", "UNUSED", unused.len())
-                .dimmed()
+                .cyan()
                 .bold()
                 .to_string(),
         ));
@@ -182,76 +159,62 @@ fn render_colored(report: &AuditReport) -> String {
         out.push('\n');
     }
 
-    // Summary box
-    out.push_str(&format!(
-        "  {}\n",
-        "╭──────────────────────────────────────────────╮"
-            .dimmed()
-            .to_string()
-    ));
-    out.push_str(&format!(
-        "  {}  {}\n",
-        "│".dimmed().to_string(),
-        "SUMMARY".bright_yellow().bold().to_string(),
-    ));
-    out.push_str(&format!(
-        "  {}\n",
-        "├──────────────────────────────────────────────┤"
-            .dimmed()
-            .to_string()
-    ));
+    // Summary box — all rows have left AND right │ borders
+    let sum_top = format!("╭{}╮", "─".repeat(SUMMARY_INNER_W));
+    let sum_mid = format!("├{}┤", "─".repeat(SUMMARY_INNER_W));
+    let sum_bot = format!("╰{}╯", "─".repeat(SUMMARY_INNER_W));
+
+    out.push_str(&format!("  {}\n", sum_top.bright_yellow().bold()));
+    // Header row: │  SUMMARY{pad}│
+    {
+        let label = "SUMMARY";
+        let inner_used = 2 + label.len(); // "  SUMMARY"
+        let pad = SUMMARY_INNER_W.saturating_sub(inner_used);
+        let header = format!(
+            "  {}  {}{}{}",
+            "│".bright_yellow().bold(),
+            label.bright_yellow().bold(),
+            " ".repeat(pad),
+            "│".bright_yellow().bold(),
+        );
+        out.push_str(&format!("{}\n", header));
+    }
+    out.push_str(&format!("  {}\n", sum_mid.bright_yellow().bold()));
 
     let rows: Vec<(&str, usize, &str)> = vec![
-        ("Missing", missing.len(), "[x]"),
-        ("Secrets", secrets.len(), "[!]"),
-        ("Undocumented", undoc.len(), "[~]"),
-        ("Unused", unused.len(), "[-]"),
-        ("Empty", empty.len(), "[.]"),
-        ("Git issues", git_findings.len(), "[!]"),
+        ("Missing",      missing.len(),       "[x]"),
+        ("Secrets",      secrets.len(),       "[!]"),
+        ("Undocumented", undoc.len(),         "[~]"),
+        ("Unused",       unused.len(),        "[-]"),
+        ("Empty",        empty.len(),         "[.]"),
+        ("Git issues",   git_findings.len(),  "[!]"),
     ];
 
     for (label, count, icon) in &rows {
-        let count_str = count.to_string();
+        let icon_str = if *count > 0 { icon.to_string() } else { "   ".to_string() };
+        let count_plain = format!("{:>3}", count); // right-pad on plain string
+        let count_display = if *count > 0 {
+            count_plain.bold().to_string()
+        } else {
+            count_plain.dimmed().to_string()
+        };
+        // inner content: "  {:<14} {:>3}  {icon}" = 2+14+1+3+2+3 = 25 chars
+        let inner_used = 2 + 14 + 1 + 3 + 2 + 3;
+        let pad = SUMMARY_INNER_W.saturating_sub(inner_used);
         let line = format!(
-            "  {}  {:<14} {:>3}  {}",
-            "│".dimmed().to_string(),
+            "  {}  {:<14} {}  {}{}{}",
+            "│".bright_yellow().bold(),
             label,
-            if *count > 0 {
-                count_str.bold().to_string()
-            } else {
-                count_str.dimmed().to_string()
-            },
-            if *count > 0 {
-                icon.to_string()
-            } else {
-                " ".to_string()
-            }
+            count_display,
+            icon_str,
+            " ".repeat(pad),
+            "│".bright_yellow().bold(),
         );
-        out.push_str(&line);
-        out.push('\n');
+        out.push_str(&format!("{}\n", line));
     }
 
-    out.push_str(&format!(
-        "  {}\n",
-        "╰──────────────────────────────────────────────╯"
-            .dimmed()
-            .to_string()
-    ));
-
-    // Exit code
+    out.push_str(&format!("  {}\n", sum_bot.bright_yellow().bold()));
     out.push('\n');
-    if report.exit_code == 0 {
-        out.push_str(&format!(
-            "  {} Exit code: 0 (clean)\n\n",
-            "[/]".bright_yellow().bold().to_string(),
-        ));
-    } else {
-        out.push_str(&format!(
-            "  {} Exit code: {} (critical issues found)\n\n",
-            "[x]".red().bold().to_string(),
-            report.exit_code.to_string().red().bold().to_string(),
-        ));
-    }
 
     out
 }
@@ -267,26 +230,33 @@ fn render_finding_colored(finding: &Finding, out: &mut String) {
         } => {
             out.push_str(&format!(
                 "    {} {}\n",
-                ">".red().to_string(),
+                "▸".red().bold().to_string(),
                 key.red().bold().to_string(),
             ));
             for r in references {
                 out.push_str(&format!(
-                    "      Referenced in: {}:{}\n",
+                    "      {} {}:{}\n",
+                    "·".dimmed().to_string(),
                     r.file.display().to_string().dimmed().to_string(),
-                    r.line,
+                    r.line.to_string().dimmed().to_string(),
                 ));
             }
             if *in_shell {
                 out.push_str(&format!(
-                    "      {} Found in shell env -- add to .env.example\n",
-                    "->".yellow().to_string(),
+                    "      {} {}\n",
+                    "→".yellow().to_string(),
+                    "present in shell — add to .env.example".dimmed().to_string(),
                 ));
             } else {
-                out.push_str("      Not found in: .env.local, .env.example, shell\n");
                 out.push_str(&format!(
-                    "      {} Add to .env.local and document in .env.example\n",
-                    "->".yellow().to_string(),
+                    "      {} {}\n",
+                    "→".yellow().to_string(),
+                    "not in .env.local, .env.example, or shell".dimmed().to_string(),
+                ));
+                out.push_str(&format!(
+                    "        {} {}\n",
+                    "↳".yellow().to_string(),
+                    "add to .env.local and document in .env.example".dimmed().to_string(),
                 ));
             }
         }
@@ -300,21 +270,20 @@ fn render_finding_colored(finding: &Finding, out: &mut String) {
             ..
         }) => {
             out.push_str(&format!(
-                "    {} {}:{} -- {}\n",
-                "!".red().to_string(),
-                file.display().to_string().dimmed().to_string(),
-                line,
+                "    {} {}  {}\n",
+                "▸".red().bold().to_string(),
                 key.red().bold().to_string(),
+                format!("{}:{}", file.display(), line).dimmed().to_string(),
             ));
             let sev_str = match severity {
                 Severity::Critical => severity.to_string().red().bold().to_string(),
-                Severity::High => severity.to_string().red().to_string(),
-                Severity::Medium => severity.to_string().yellow().to_string(),
-                Severity::Low => severity.to_string().dimmed().to_string(),
+                Severity::High     => severity.to_string().red().to_string(),
+                Severity::Medium   => severity.to_string().yellow().to_string(),
+                Severity::Low      => severity.to_string().dimmed().to_string(),
             };
-            out.push_str(&format!("      Severity: {sev_str}\n"));
-            out.push_str(&format!("      Reason:   {reason}\n"));
-            out.push_str(&format!("      Value:    {value_preview}\n"));
+            out.push_str(&format!("      {} {}\n", "severity".dimmed().to_string(), sev_str));
+            out.push_str(&format!("      {} {}\n", "reason  ".dimmed().to_string(), reason));
+            out.push_str(&format!("      {} {}\n", "value   ".dimmed().to_string(), value_preview));
         }
         Finding::Undocumented {
             key,
@@ -323,21 +292,27 @@ fn render_finding_colored(finding: &Finding, out: &mut String) {
         } => {
             out.push_str(&format!(
                 "    {} {}\n",
-                "~".yellow().to_string(),
+                "▸".yellow().bold().to_string(),
                 key.yellow().to_string(),
             ));
             for path in defined_in {
                 out.push_str(&format!(
-                    "      Defined in: {}\n",
+                    "      {} {}\n",
+                    "·".dimmed().to_string(),
                     path.display().to_string().dimmed().to_string(),
                 ));
             }
-            out.push_str("      Missing from: .env.example\n");
+            out.push_str(&format!(
+                "      {} {}\n",
+                "→".yellow().to_string(),
+                "missing from .env.example — document it".dimmed().to_string(),
+            ));
             for r in references {
                 out.push_str(&format!(
-                    "      Referenced in: {}:{}\n",
+                    "      {} {}:{}\n",
+                    "·".dimmed().to_string(),
                     r.file.display().to_string().dimmed().to_string(),
-                    r.line,
+                    r.line.to_string().dimmed().to_string(),
                 ));
             }
         }
@@ -348,19 +323,26 @@ fn render_finding_colored(finding: &Finding, out: &mut String) {
         } => {
             out.push_str(&format!(
                 "    {} {}\n",
-                "-".dimmed().to_string(),
+                "·".dimmed().to_string(),
                 key.dimmed().to_string(),
             ));
             for (path, line) in defined_in {
                 out.push_str(&format!(
-                    "      Defined in: {}:{}\n",
+                    "      {} {}:{}\n",
+                    "·".dimmed().to_string(),
                     path.display().to_string().dimmed().to_string(),
-                    line,
+                    line.to_string().dimmed().to_string(),
                 ));
             }
-            out.push_str("      Never referenced in scanned files\n");
+            out.push_str(&format!(
+                "      {}\n",
+                "never referenced in scanned files".dimmed().to_string(),
+            ));
             if let Some(last) = last_seen_in_git {
-                out.push_str(&format!("      Last seen in git: {last}\n"));
+                out.push_str(&format!(
+                    "      last seen in git: {}\n",
+                    last.dimmed().to_string(),
+                ));
             }
         }
         Finding::Empty {
@@ -370,38 +352,42 @@ fn render_finding_colored(finding: &Finding, out: &mut String) {
             is_placeholder,
         } => {
             out.push_str(&format!(
-                "    {} {} at {}:{}\n",
-                ".".dimmed().to_string(),
+                "    {} {}  {}\n",
+                "·".dimmed().to_string(),
                 key.dimmed().to_string(),
-                file.display().to_string().dimmed().to_string(),
-                line,
+                format!("{}:{}", file.display(), line).dimmed().to_string(),
             ));
-            if *is_placeholder {
-                out.push_str("      Has placeholder value\n");
-            } else {
-                out.push_str("      Has empty value\n");
-            }
+            out.push_str(&format!(
+                "      {}\n",
+                if *is_placeholder { "placeholder value" } else { "empty value" }
+                    .dimmed()
+                    .to_string(),
+            ));
         }
         Finding::GitTracked { file } => {
             out.push_str(&format!(
-                "    {} {} is tracked by git!\n",
-                "!".red().to_string(),
+                "    {} {} {}\n",
+                "▸".red().bold().to_string(),
                 file.display().to_string().red().bold().to_string(),
+                "is tracked by git".dimmed().to_string(),
             ));
             out.push_str(&format!(
-                "      {} Remove from git: git rm --cached <file>\n",
-                "->".yellow().to_string(),
+                "      {} {}\n",
+                "→".yellow().to_string(),
+                "run: git rm --cached <file>".dimmed().to_string(),
             ));
         }
         Finding::NotInGitignore { file } => {
             out.push_str(&format!(
-                "    {} {} is not in .gitignore\n",
-                "~".yellow().to_string(),
+                "    {} {} {}\n",
+                "·".yellow().to_string(),
                 file.display().to_string().yellow().to_string(),
+                "is not in .gitignore".dimmed().to_string(),
             ));
             out.push_str(&format!(
-                "      {} Add to .gitignore to prevent accidental commits\n",
-                "->".yellow().to_string(),
+                "      {} {}\n",
+                "→".yellow().to_string(),
+                "add to .gitignore to prevent accidental commits".dimmed().to_string(),
             ));
         }
     }
@@ -411,11 +397,6 @@ fn render_finding_colored(finding: &Finding, out: &mut String) {
 
 fn render_plain(report: &AuditReport) -> String {
     let mut out = String::new();
-
-    // Banner (plain)
-    out.push_str(BANNER);
-    out.push_str(&format!("  Environment Variable Auditor\n"));
-    out.push_str(&format!("  v{}\n\n", report.version));
 
     // Stats
     out.push_str(&format!("  {}\n", divider()));
@@ -525,16 +506,7 @@ fn render_plain(report: &AuditReport) -> String {
     out.push_str(&format!("  |  Empty          {:>3}  [.]                     |\n", empty.len()));
     out.push_str(&format!("  |  Git issues     {:>3}  [!]                     |\n", git_findings.len()));
     out.push_str("  +----------------------------------------------+\n");
-
     out.push('\n');
-    if report.exit_code == 0 {
-        out.push_str("  [/] Exit code: 0 (clean)\n\n");
-    } else {
-        out.push_str(&format!(
-            "  [x] Exit code: {} (critical issues found)\n\n",
-            report.exit_code,
-        ));
-    }
 
     out
 }
