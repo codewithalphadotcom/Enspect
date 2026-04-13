@@ -50,8 +50,8 @@ walkdir = "2"
 # Shell completions
 clap_complete = "4"
 
-# Interactive REPL
-rustyline = "15"
+# Interactive REPL (raw-mode terminal for complete box rendering)
+crossterm = "0.28"
 
 [dev-dependencies]
 assert_cmd = "2"
