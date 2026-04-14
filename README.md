@@ -1,5 +1,8 @@
 # Enspect
 
+<!-- [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.85%2B-orange)](https://www.rust-lang.org/) -->
+
 > Stop shipping apps with missing or leaked environment variables.
 
 A production-ready CLI tool for auditing environment variable usage across your entire codebase. Detects missing variables before a deployment crashes, flags secrets accidentally left in `.env` files, and highlights undocumented or unused variables that confuse new team members.
@@ -19,6 +22,12 @@ A production-ready CLI tool for auditing environment variable usage across your 
 - **Multi-format Output** — Pretty terminal UI, JSON, SARIF 2.1.0, GitHub annotations
 - **Pre-commit Hook** — Block commits with critical issues automatically
 
+---
+
+## Preview
+<img width="1571" height="504" alt="Screenshot 2026-04-14 at 5 03 15 AM" src="https://github.com/user-attachments/assets/a260469b-0574-4f61-bca4-87cd02a0ea3e" />
+
+<!-- <img width="1579" height="979" alt="Screenshot 2026-04-14 at 5 06 26 AM" src="https://github.com/user-attachments/assets/d342772e-1859-4527-beb3-18442088f5e6" /> -->
 ---
 
 ## Quick Start
