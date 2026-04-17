@@ -172,32 +172,43 @@ fn find_unescaped_quote(s: &str, quote: char) -> Option<usize> {
 /// Discover all .env* files in a directory (non-recursive, just the root).
 pub fn find_env_files(root: &Path) -> Result<Vec<EnvFile>> {
     let mut env_files = Vec::new();
+    find_env_files_recursive(root, &mut env_files);
+    Ok(env_files)
+}
 
-    if !root.is_dir() {
-        return Ok(env_files);
-    }
+fn find_env_files_recursive(dir: &Path, env_files: &mut Vec<EnvFile>) {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
 
-    for entry in std::fs::read_dir(root)? {
-        let entry = entry?;
+    for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        let file_name = match path.file_name().and_then(|n| n.to_str()) {
-            Some(name) => name.to_string(),
-            None => continue,
-        };
-        if file_name.starts_with(".env") {
-            match parse_env_file(&path) {
-                Ok(ef) => env_files.push(ef),
-                Err(e) => {
-                    eprintln!("Warning: failed to parse {}: {e}", path.display());
+        if path.is_dir() {
+            // Skip common non-project directories
+            let dir_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if matches!(
+                dir_name,
+                "node_modules" | ".git" | "target" | "dist" | "build" | "__pycache__" | ".next"
+            ) {
+                continue;
+            }
+            find_env_files_recursive(&path, env_files);
+        } else if path.is_file() {
+            let file_name = match path.file_name().and_then(|n| n.to_str()) {
+                Some(name) => name.to_string(),
+                None => continue,
+            };
+            if file_name.starts_with(".env") {
+                match parse_env_file(&path) {
+                    Ok(ef) => env_files.push(ef),
+                    Err(e) => {
+                        eprintln!("Warning: failed to parse {}: {e}", path.display());
+                    }
                 }
             }
         }
     }
-
-    Ok(env_files)
 }
 
 #[cfg(test)]
