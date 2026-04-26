@@ -1,4 +1,4 @@
-use std::io::{stdout, Write as _};
+use std::io::{Write as _, stdout};
 
 use crossterm::{
     cursor,
@@ -9,7 +9,7 @@ use crossterm::{
 };
 use owo_colors::OwoColorize;
 
-use crate::cli::args::{AuditArgs, CheckArgs, DiffArgs, ScanArgs, SecretsArgs};
+use crate::cli::args::{AuditArgs, CheckArgs, DiffArgs, ScaffoldArgs, ScanArgs, SecretsArgs};
 use crate::cli::commands;
 
 const BANNER_ART: &str = "
@@ -84,10 +84,26 @@ fn print_welcome() {
     println!();
 
     let tips: &[(&str, &str)] = &[
-        ("enspect audit",   "Run a full environment variable audit on your project"),
-        ("enspect secrets", "Scan .env files for leaked API keys and credentials"),
-        ("enspect scan",    "List all env var references found in source code"),
-        ("enspect help",    "Show all available commands and their usage"),
+        (
+            "enspect audit",
+            "Run a full environment variable audit on your project",
+        ),
+        (
+            "enspect secrets",
+            "Scan .env files for leaked API keys and credentials",
+        ),
+        (
+            "enspect scan",
+            "List all env var references found in source code",
+        ),
+        (
+            "enspect scaffold",
+            "Generate .env.local from missing keys in your code",
+        ),
+        (
+            "enspect help",
+            "Show all available commands and their usage",
+        ),
     ];
     for (cmd, desc) in tips {
         println!("  {:<22}  {}", cmd.bold(), desc.dimmed());
@@ -224,11 +240,7 @@ fn read_boxed_line(history: &[String]) -> std::io::Result<ReadLine> {
 
     // Move cursor to 3 rows below mid (past bot + blank) and position at col 0.
     // No extra println here — caller manages spacing between output and next box.
-    execute!(
-        stdout(),
-        cursor::MoveDown(3),
-        cursor::MoveToColumn(0),
-    )?;
+    execute!(stdout(), cursor::MoveDown(3), cursor::MoveToColumn(0),)?;
 
     Ok(result)
 }
@@ -240,7 +252,11 @@ fn redraw_input(new_val: &str, input: &mut String) -> std::io::Result<()> {
     execute!(
         stdout(),
         cursor::MoveToColumn(CURSOR_COL),
-        Print(format!("{:<width$}", input, width = old_len.max(input.len()))),
+        Print(format!(
+            "{:<width$}",
+            input,
+            width = old_len.max(input.len())
+        )),
         cursor::MoveToColumn(CURSOR_COL + input.len() as u16),
     )
 }
@@ -254,17 +270,33 @@ fn print_help() {
     println!();
 
     let cmds: &[(&str, &str)] = &[
-        ("enspect audit",                "Full environment variable audit on the current directory"),
-        ("enspect audit --root <path>",  "Audit a specific directory"),
-        ("enspect scan",                 "List all env var references in source files"),
-        ("enspect check <VAR>",          "Deep-check a single variable across all sources"),
-        ("enspect secrets",              "Run secret detection on all .env files"),
-        ("enspect diff <file1> <file2>", "Compare two .env files key-by-key"),
-        ("enspect init",                 "Generate .Enspect.toml in current directory"),
-        ("enspect hook install",         "Install pre-commit git hook"),
-        ("enspect hook uninstall",       "Remove installed git hook"),
-        ("help",                         "Show this list"),
-        ("quit / exit",                  "Exit Enspect"),
+        (
+            "enspect audit",
+            "Full environment variable audit on the current directory",
+        ),
+        ("enspect audit --root <path>", "Audit a specific directory"),
+        (
+            "enspect scan",
+            "List all env var references in source files",
+        ),
+        (
+            "enspect check <VAR>",
+            "Deep-check a single variable across all sources",
+        ),
+        ("enspect secrets", "Run secret detection on all .env files"),
+        (
+            "enspect diff <file1> <file2>",
+            "Compare two .env files key-by-key",
+        ),
+        (
+            "enspect init",
+            "Generate .Enspect.toml in current directory",
+        ),
+        ("enspect hook install", "Install pre-commit git hook"),
+        ("enspect hook uninstall", "Remove installed git hook"),
+        ("enspect scaffold", "Generate .env.local from missing keys"),
+        ("help", "Show this list"),
+        ("quit / exit", "Exit Enspect"),
     ];
     for (cmd, desc) in cmds {
         println!("  {:<34}  {}", cmd.bold(), desc.dimmed());
@@ -283,7 +315,10 @@ fn print_help() {
 // ── Command dispatcher ────────────────────────────────────────────────────────
 
 fn dispatch(input: &str) {
-    let input = input.trim().strip_prefix("enspect ").unwrap_or(input.trim());
+    let input = input
+        .trim()
+        .strip_prefix("enspect ")
+        .unwrap_or(input.trim());
     let parts: Vec<&str> = input.split_whitespace().collect();
     if parts.is_empty() {
         return;
@@ -307,7 +342,11 @@ fn dispatch(input: &str) {
         }
         "check" => {
             if parts.len() < 2 {
-                eprintln!("  {} {}", "Usage:".bright_yellow(), "enspect check <VAR_NAME>".bold());
+                eprintln!(
+                    "  {} {}",
+                    "Usage:".bright_yellow(),
+                    "enspect check <VAR_NAME>".bold()
+                );
                 return;
             }
             let args = CheckArgs {
@@ -329,7 +368,11 @@ fn dispatch(input: &str) {
         }
         "diff" => {
             if parts.len() < 3 {
-                eprintln!("  {} {}", "Usage:".bright_yellow(), "enspect diff <file1> <file2>".bold());
+                eprintln!(
+                    "  {} {}",
+                    "Usage:".bright_yellow(),
+                    "enspect diff <file1> <file2>".bold()
+                );
                 return;
             }
             let args = DiffArgs {
@@ -345,17 +388,40 @@ fn dispatch(input: &str) {
                 eprintln!("  {} {e:#}", "Error:".red().bold());
             }
         }
+        "scaffold" => {
+            let args = ScaffoldArgs {
+                root: extract_flag(&parts[1..], "--root").unwrap_or(".".to_string()),
+                config: extract_flag(&parts[1..], "--config"),
+                output: extract_flag(&parts[1..], "-o")
+                    .or_else(|| extract_flag(&parts[1..], "--output"))
+                    .unwrap_or(".env.local".to_string()),
+                force: parts[1..].contains(&"--force"),
+                dry_run: parts[1..].contains(&"--dry-run"),
+                include_undocumented: parts[1..].contains(&"--include-undocumented"),
+            };
+            if let Err(e) = commands::scaffold::run(&args) {
+                eprintln!("  {} {e:#}", "Error:".red().bold());
+            }
+        }
         "hook" => {
             if parts.len() < 2 {
-                eprintln!("  {} {}", "Usage:".bright_yellow(), "enspect hook install | uninstall | run".bold());
+                eprintln!(
+                    "  {} {}",
+                    "Usage:".bright_yellow(),
+                    "enspect hook install | uninstall | run".bold()
+                );
                 return;
             }
             let action = match parts[1] {
-                "install"   => crate::cli::args::HookAction::Install,
+                "install" => crate::cli::args::HookAction::Install,
                 "uninstall" => crate::cli::args::HookAction::Uninstall,
-                "run"       => crate::cli::args::HookAction::Run,
+                "run" => crate::cli::args::HookAction::Run,
                 other => {
-                    eprintln!("  {} Unknown hook action: {}", "Error:".red().bold(), other.bold());
+                    eprintln!(
+                        "  {} Unknown hook action: {}",
+                        "Error:".red().bold(),
+                        other.bold()
+                    );
                     return;
                 }
             };
@@ -384,20 +450,20 @@ fn dispatch(input: &str) {
 
 fn parse_audit_args(rest: &[&str]) -> AuditArgs {
     AuditArgs {
-        root:        extract_flag(rest, "--root").unwrap_or(".".to_string()),
-        config:      extract_flag(rest, "--config"),
-        format:      extract_flag(rest, "--format").unwrap_or("pretty".to_string()),
-        fail_on:     extract_flag(rest, "--fail-on"),
-        no_color:    rest.contains(&"--no-color"),
-        quiet:       rest.contains(&"-q") || rest.contains(&"--quiet"),
-        verbose:     rest.contains(&"-v") || rest.contains(&"--verbose"),
-        no_secrets:  rest.contains(&"--no-secrets"),
-        no_git:      rest.contains(&"--no-git"),
-        no_unused:   rest.contains(&"--no-unused"),
-        no_empty:    rest.contains(&"--no-empty"),
+        root: extract_flag(rest, "--root").unwrap_or(".".to_string()),
+        config: extract_flag(rest, "--config"),
+        format: extract_flag(rest, "--format").unwrap_or("pretty".to_string()),
+        fail_on: extract_flag(rest, "--fail-on"),
+        no_color: rest.contains(&"--no-color"),
+        quiet: rest.contains(&"-q") || rest.contains(&"--quiet"),
+        verbose: rest.contains(&"-v") || rest.contains(&"--verbose"),
+        no_secrets: rest.contains(&"--no-secrets"),
+        no_git: rest.contains(&"--no-git"),
+        no_unused: rest.contains(&"--no-unused"),
+        no_empty: rest.contains(&"--no-empty"),
         show_values: rest.contains(&"--show-values"),
-        ci:          rest.contains(&"--ci"),
-        show_all:    rest.contains(&"--show-all"),
+        ci: rest.contains(&"--ci"),
+        show_all: rest.contains(&"--show-all"),
     }
 }
 
