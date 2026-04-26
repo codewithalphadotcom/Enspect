@@ -65,6 +65,12 @@ fn main() {
                 std::process::exit(2);
             }
         }
+        Some(Commands::Scaffold(args)) => {
+            if let Err(e) = cli::commands::scaffold::run(&args) {
+                eprintln!("Error: {e:#}");
+                std::process::exit(2);
+            }
+        }
         Some(Commands::Completion(args)) => {
             use clap::CommandFactory;
             use clap_complete::generate;
