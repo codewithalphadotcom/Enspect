@@ -34,13 +34,20 @@ A production-ready CLI tool for auditing environment variable usage across your 
 
 ### Installation
 
-Build from source (requires [Rust](https://rustup.rs) 1.85+):
+**One-liner install** (clone + build + add to PATH):
 
 ```bash
-git clone https://github.com/codewithalpha/enspect.git
-cd enspect
-cargo build --release
-./target/release/enspect --version
+git clone https://github.com/codewithalphadotcom/Enspect.git
+cd Enspect
+bash install.sh
+```
+
+The script detects your OS/arch, builds an optimized release binary, installs it globally via `cargo install`, and optionally sets up shell tab completions. After it finishes, `enspect` works from any directory.
+
+**Or install directly via Cargo** (requires [Rust](https://rustup.rs) 1.85+):
+
+```bash
+cargo install --git https://github.com/codewithalphadotcom/Enspect.git
 ```
 
 ### Run your first audit
@@ -63,6 +70,7 @@ enspect check DATABASE_URL # Deep-check a specific variable
 | `enspect scan` | List all env var references in code |
 | `enspect secrets` | Scan `.env*` files for leaked secrets |
 | `enspect check <VAR>` | Deep-check a single variable |
+| `enspect scaffold` | Generate a `.env.local` from missing keys |
 | `enspect diff <file1> <file2>` | Compare two `.env` files |
 | `enspect init` | Generate `.Enspect.toml` config |
 | `enspect hook install` | Install pre-commit git hook |
@@ -73,6 +81,13 @@ enspect check DATABASE_URL # Deep-check a specific variable
 ```bash
 # Audit with JSON output
 enspect audit --format json > report.json
+
+# Scaffold .env.local from missing keys (preview first)
+enspect scaffold --dry-run
+enspect scaffold
+
+# Scaffold into a custom file
+enspect scaffold --output .env.development
 
 # SARIF output for GitHub Code Scanning
 enspect audit --format sarif > results.sarif
