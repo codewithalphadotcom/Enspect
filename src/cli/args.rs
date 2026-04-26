@@ -37,6 +37,9 @@ pub enum Commands {
 
     /// Generate shell completion scripts
     Completion(CompletionArgs),
+
+    /// Scaffold a .env file from missing keys found in the codebase
+    Scaffold(ScaffoldArgs),
 }
 
 #[derive(Parser)]
@@ -159,4 +162,31 @@ pub enum HookAction {
 pub struct CompletionArgs {
     /// Shell to generate completions for
     pub shell: clap_complete::Shell,
+}
+
+#[derive(Parser)]
+pub struct ScaffoldArgs {
+    /// Root directory to scan
+    #[arg(long, default_value = ".")]
+    pub root: String,
+
+    /// Path to .Enspect.toml config file
+    #[arg(long)]
+    pub config: Option<String>,
+
+    /// Output file to create / append to (relative to --root)
+    #[arg(long, short, default_value = ".env.local")]
+    pub output: String,
+
+    /// Overwrite the output file instead of appending new keys
+    #[arg(long)]
+    pub force: bool,
+
+    /// Print what would be written without creating any files
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Also include undocumented keys (defined in .env.local but missing from .env.example)
+    #[arg(long)]
+    pub include_undocumented: bool,
 }
