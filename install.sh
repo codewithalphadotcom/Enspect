@@ -9,7 +9,7 @@ set -euo pipefail
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+ORANGE='\033[38;5;214m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
@@ -22,20 +22,36 @@ REPO_URL="https://github.com/${REPO}"
 VERSION="${ENSPECT_VERSION:-latest}"
 
 # ── Helpers ──────────────────────────────────────────────────
-info()    { echo -e "  ${BLUE}•${NC} $1"; }
+info()    { echo -e "  ${ORANGE}•${NC} $1"; }
 success() { echo -e "  ${GREEN}✓${NC} $1"; }
 warn()    { echo -e "  ${YELLOW}!${NC} $1"; }
 error()   { echo -e "  ${RED}✗${NC} $1"; exit 1; }
 step()    { echo -e "\n${BOLD}${CYAN}▶ $1${NC}"; }
 
+# ── Spinner ──────────────────────────────────────────────────
+# Usage: spin <bg_pid> "message"
+spin() {
+  local pid=$1 msg=$2 i=0
+  local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+  while kill -0 "$pid" 2>/dev/null; do
+    printf "\r  ${ORANGE}%s${NC}  %s" "${frames[$((i % 10))]}" "$msg" || true
+    i=$((i + 1))
+    sleep 0.08 || true
+  done
+  # Clear the spinner line
+  printf "\r%-80s\r" "" || true
+}
+
 print_banner() {
+  # Skip if launched from get.sh — it already printed a banner
+  [[ "${ENSPECT_FROM_REMOTE:-}" == "1" ]] && return
   echo ""
-  echo -e "${BOLD}${BLUE}  ███████╗███╗  ██╗███████╗██████╗ ███████╗ ██████╗████████╗${NC}"
-  echo -e "${BOLD}${BLUE}  ██╔════╝████╗ ██║██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝${NC}"
-  echo -e "${BOLD}${BLUE}  █████╗  ██╔██╗██║███████╗██████╔╝█████╗  ██║        ██║${NC}"
-  echo -e "${BOLD}${BLUE}  ██╔══╝  ██║╚████║╚════██║██╔═══╝ ██╔══╝  ██║        ██║${NC}"
-  echo -e "${BOLD}${BLUE}  ███████╗██║ ╚███║███████║██║     ███████╗╚██████╗   ██║${NC}"
-  echo -e "${BOLD}${BLUE}  ╚══════╝╚═╝  ╚══╝╚══════╝╚═╝     ╚══════╝ ╚═════╝   ╚═╝${NC}"
+  echo -e "${BOLD}${ORANGE}  ███████╗███╗  ██╗███████╗██████╗ ███████╗ ██████╗████████╗${NC}"
+  echo -e "${BOLD}${ORANGE}  ██╔════╝████╗ ██║██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝${NC}"
+  echo -e "${BOLD}${ORANGE}  █████╗  ██╔██╗██║███████╗██████╔╝█████╗  ██║        ██║${NC}"
+  echo -e "${BOLD}${ORANGE}  ██╔══╝  ██║╚████║╚════██║██╔═══╝ ██╔══╝  ██║        ██║${NC}"
+  echo -e "${BOLD}${ORANGE}  ███████╗██║ ╚███║███████║██║     ███████╗╚██████╗   ██║${NC}"
+  echo -e "${BOLD}${ORANGE}  ╚══════╝╚═╝  ╚══╝╚══════╝╚═╝     ╚══════╝ ╚═════╝   ╚═╝${NC}"
   echo ""
   echo -e "  ${DIM}Environment Variable Auditor — Installer${NC}"
   echo ""
@@ -66,10 +82,25 @@ detect_platform() {
 has_cargo() { command -v cargo &>/dev/null; }
 
 install_rust() {
-  info "Installing Rust via rustup..."
-  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-    | sh -s -- -y --no-modify-path --quiet
-  # Source cargo env for rest of script
+  info "Downloading rustup installer..."
+  local rustup_sh log_file
+  rustup_sh="$(mktemp)"
+  log_file="$(mktemp)"
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o "$rustup_sh"
+
+  # Run in background so we can show a live progress spinner
+  sh "$rustup_sh" -y --no-modify-path --quiet > "$log_file" 2>&1 &
+  local rust_pid=$!
+  spin "$rust_pid" "Installing Rust toolchain — this takes about a minute, hang tight..."
+
+  if ! wait "$rust_pid"; then
+    echo ""
+    cat "$log_file"
+    rm -f "$rustup_sh" "$log_file"
+    error "Rust installation failed. See output above."
+  fi
+  rm -f "$rustup_sh" "$log_file"
+
   # shellcheck source=/dev/null
   source "$HOME/.cargo/env"
   success "Rust installed: $(rustc --version)"
@@ -93,9 +124,20 @@ ensure_rust() {
 # ── Build ─────────────────────────────────────────────────────
 build_from_source() {
   step "Building Enspect from source"
-  info "Running: cargo build --release"
-  echo ""
-  cargo build --release
+  local log_file
+  log_file="$(mktemp)"
+
+  cargo build --release > "$log_file" 2>&1 &
+  local build_pid=$!
+  spin "$build_pid" "Compiling release binary — first build takes a minute..."
+
+  if ! wait "$build_pid"; then
+    echo ""
+    cat "$log_file"
+    rm -f "$log_file"
+    error "Build failed. See compiler output above."
+  fi
+  rm -f "$log_file"
   echo ""
   success "Build complete → target/release/enspect"
 }
