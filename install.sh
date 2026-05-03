@@ -83,7 +83,7 @@ ensure_rust() {
   echo ""
   warn "Rust / Cargo not found."
   printf "  Install Rust now? [Y/n] "
-  read -r answer
+  read -r answer </dev/tty
   case "$answer" in
     [Nn]*) error "Rust is required to build Enspect. Visit https://rustup.rs to install." ;;
     *) install_rust ;;
@@ -263,7 +263,7 @@ check_existing() {
     echo ""
     warn "Enspect is already installed ($current)."
     printf "  Reinstall / update? [y/N] "
-    read -r answer
+    read -r answer </dev/tty
     case "$answer" in
       [Yy]*) return ;;
       *) echo ""; info "Nothing changed. Run 'enspect --help' to get started."; echo ""; exit 0 ;;
@@ -318,7 +318,7 @@ main() {
   # Optional: shell completions
   echo ""
   printf "  Set up shell tab completions? [Y/n] "
-  read -r comp_answer
+  read -r comp_answer </dev/tty
   case "$comp_answer" in
     [Nn]*) info "Skipping completions. Run 'enspect completion <shell>' later." ;;
     *) setup_completions ;;
