@@ -76,7 +76,9 @@ clone_repo() {
 run_installer() {
   step "Starting installer"
   info "Handing off to install.sh inside the cloned repo..."
-  cd "$TMP_DIR"  export ENSPECT_FROM_REMOTE=1  bash install.sh
+  cd "$TMP_DIR"
+  export ENSPECT_FROM_REMOTE=1
+  bash install.sh
 }
 
 # ── Main ──────────────────────────────────────────────────────
