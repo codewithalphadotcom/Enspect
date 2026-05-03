@@ -34,15 +34,29 @@ A production-ready CLI tool for auditing environment variable usage across your 
 
 ### Installation
 
-**One-liner install** (clone + build + add to PATH):
+**macOS / Linux — curl one-liner (no cloning required):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/codewithalphadotcom/Enspect/main/get.sh | bash
+```
+
+Fetches the repo into a temp directory, builds an optimized release binary, installs it globally, and optionally sets up shell tab completions. After it finishes, `enspect` works from any directory.
+
+**Windows — PowerShell one-liner:**
+
+```powershell
+irm https://raw.githubusercontent.com/codewithalphadotcom/Enspect/main/get.ps1 | iex
+```
+
+Checks for git and Rust (installs Rust automatically via rustup if missing), builds from source, and adds `enspect` to your user PATH.
+
+**Manual install** (clone + build):
 
 ```bash
 git clone https://github.com/codewithalphadotcom/Enspect.git
 cd Enspect
 bash install.sh
 ```
-
-The script detects your OS/arch, builds an optimized release binary, installs it globally via `cargo install`, and optionally sets up shell tab completions. After it finishes, `enspect` works from any directory.
 
 **Or install directly via Cargo** (requires [Rust](https://rustup.rs) 1.85+):
 
