@@ -11,13 +11,13 @@ REPO_URL="https://github.com/codewithalphadotcom/Enspect.git"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+ORANGE='\033[38;5;214m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
-info()    { echo -e "  ${BLUE}•${NC} $1"; }
+info()    { echo -e "  ${ORANGE}•${NC} $1"; }
 success() { echo -e "  ${GREEN}✓${NC} $1"; }
 warn()    { echo -e "  ${YELLOW}!${NC} $1"; }
 error()   { echo -e "  ${RED}✗${NC} $1"; exit 1; }
@@ -25,12 +25,12 @@ step()    { echo -e "\n${BOLD}${CYAN}▶ $1${NC}"; }
 
 print_banner() {
   echo ""
-  echo -e "${BOLD}${BLUE}  ███████╗███╗  ██╗███████╗██████╗ ███████╗ ██████╗████████╗${NC}"
-  echo -e "${BOLD}${BLUE}  ██╔════╝████╗ ██║██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝${NC}"
-  echo -e "${BOLD}${BLUE}  █████╗  ██╔██╗██║███████╗██████╔╝█████╗  ██║        ██║${NC}"
-  echo -e "${BOLD}${BLUE}  ██╔══╝  ██║╚████║╚════██║██╔═══╝ ██╔══╝  ██║        ██║${NC}"
-  echo -e "${BOLD}${BLUE}  ███████╗██║ ╚███║███████║██║     ███████╗╚██████╗   ██║${NC}"
-  echo -e "${BOLD}${BLUE}  ╚══════╝╚═╝  ╚══╝╚══════╝╚═╝     ╚══════╝ ╚═════╝   ╚═╝${NC}"
+  echo -e "${BOLD}${ORANGE}  ███████╗███╗  ██╗███████╗██████╗ ███████╗ ██████╗████████╗${NC}"
+  echo -e "${BOLD}${ORANGE}  ██╔════╝████╗ ██║██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝${NC}"
+  echo -e "${BOLD}${ORANGE}  █████╗  ██╔██╗██║███████╗██████╔╝█████╗  ██║        ██║${NC}"
+  echo -e "${BOLD}${ORANGE}  ██╔══╝  ██║╚████║╚════██║██╔═══╝ ██╔══╝  ██║        ██║${NC}"
+  echo -e "${BOLD}${ORANGE}  ███████╗██║ ╚███║███████║██║     ███████╗╚██████╗   ██║${NC}"
+  echo -e "${BOLD}${ORANGE}  ╚══════╝╚═╝  ╚══╝╚══════╝╚═╝     ╚══════╝ ╚═════╝   ╚═╝${NC}"
   echo ""
   echo -e "  ${DIM}Environment Variable Auditor — Remote Installer${NC}"
   echo ""
@@ -76,8 +76,7 @@ clone_repo() {
 run_installer() {
   step "Starting installer"
   info "Handing off to install.sh inside the cloned repo..."
-  cd "$TMP_DIR"
-  bash install.sh
+  cd "$TMP_DIR"  export ENSPECT_FROM_REMOTE=1  bash install.sh
 }
 
 # ── Main ──────────────────────────────────────────────────────
